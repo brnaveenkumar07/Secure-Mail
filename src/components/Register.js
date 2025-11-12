@@ -72,6 +72,25 @@ const Register = () => {
         }),
       };
 
+      if (formData.type === "organization") {
+        setLoading(true);
+        try {
+          const result = await register(registrationData);
+          if (result.success) {
+            navigate("/gmail-dashboard");
+          } else {
+            setError(result.error || "Registration failed");
+          }
+        } catch (err) {
+          setError("An error occurred during registration");
+          console.error("Registration error:", err);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+      
+      
       setPendingRegistration(registrationData);
       setIsFaceModalOpen(true);
     } catch (err) {
