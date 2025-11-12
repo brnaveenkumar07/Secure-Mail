@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for both individuals and organizations
+model User {
+  id          Int       @id @default(autoincrement())
+  username    String    @unique
+  password    String    // Hashed with bcrypt
+  name        String
+  type        UserType  @default(INDIVIDUAL)
+  signature   String?   // Digital signature for organizations
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  sentMessages    Message[] @relation("SenderMessages")
+  receivedMessages Message[] @relation("ReceiverMessages")
+  
+  @@map("users")
+}
+
+// Message model
+model Message {
+  id                  Int       @id @default(autoincrement())
+  subject             String
+  message             String
+  isFaceVerified      Boolean   @default(false)
+  isDigitallyVerified Boolean   @default(false)
+  timestamp           DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  senderId    Int
+  receiverId  Int
+  sender      User   @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User   @relation("ReceiverMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  @@map("messages")
+}
+
+// Enum for user type
+enum UserType {
+  INDIVIDUAL
+  ORGANIZATION
+}
