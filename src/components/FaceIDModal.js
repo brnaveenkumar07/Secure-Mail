@@ -5,6 +5,8 @@ const FaceIDModal = ({ isOpen, onClose, onVerified }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState("idle"); // idle, verifying, success, failed
 
+  const webcamRef = React.useRef(null);
+
   useEffect(() => {
     if (!isOpen) {
       setVerificationStatus("idle");
@@ -13,19 +15,27 @@ const FaceIDModal = ({ isOpen, onClose, onVerified }) => {
   }, [isOpen]);
 
   const handleVerify = () => {
+    if (!webcamRef.current) return;
+
     setIsVerifying(true);
     setVerificationStatus("verifying");
 
-    // Simulate face verification with 2-second delay
-    setTimeout(() => {
-      setVerificationStatus("success");
-      setIsVerifying(false);
+    const imageSrc = webcamRef.current.getScreenshot();
 
-      // Wait 1 second to show success, then callback
+    if (imageSrc) {
+      // Simulate a short delay for UX
       setTimeout(() => {
-        onVerified();
-      }, 1000);
-    }, 2000);
+        setVerificationStatus("success");
+        setIsVerifying(false);
+
+        setTimeout(() => {
+          onVerified(imageSrc);
+        }, 1000);
+      }, 1500);
+    } else {
+      setVerificationStatus("failed");
+      setIsVerifying(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -81,9 +91,10 @@ const FaceIDModal = ({ isOpen, onClose, onVerified }) => {
         {/* Webcam Preview */}
         <div className="mb-6 rounded-xl overflow-hidden bg-gray-900 relative">
           {verificationStatus === "idle" ||
-          verificationStatus === "verifying" ? (
+            verificationStatus === "verifying" ? (
             <div className="relative">
               <Webcam
+                ref={webcamRef}
                 audio={false}
                 screenshotFormat="image/jpeg"
                 className="w-full h-64 object-cover"

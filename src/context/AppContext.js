@@ -23,7 +23,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
     const user = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    
+
     if (token && user) {
       console.log("Restored session:", JSON.parse(user).name);
     }
@@ -52,14 +52,34 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const login = async (username, password) => {
+  const login = async (username, password, faceImage = null) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Convert type format for API
-      const response = await authAPI.login({ username, password });
-      
+      // Create FormData if faceImage is present or just JSON if not?
+      // Since backend now expects multipart/form-data for login route (due to upload.single),
+      // we should use FormData even if no image is sent, or ensure backend handles JSON too.
+      // But upload.single might expect multipart. Let's use FormData for consistency.
+
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('password', password);
+
+      if (faceImage) {
+        // Convert base64 to blob
+        const response = await fetch(faceImage);
+        const blob = await response.blob();
+        formData.append('image', blob, 'face.jpg');
+      }
+
+      const response = await authAPI.login(formData);
+
+      // Check if face auth is required
+      if (response.data.requireFaceAuth) {
+        return { success: false, requireFaceAuth: true };
+      }
+
       const { user, token } = response.data;
 
       // Normalize user type for frontend
@@ -90,14 +110,26 @@ export const AppProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Convert type format for API
-      const apiData = {
-        ...userData,
-        type: userData.type.toUpperCase(), // Frontend uses "individual", API expects "INDIVIDUAL"
-      };
+      // Create FormData
+      const formData = new FormData();
+      formData.append('username', userData.username);
+      formData.append('password', userData.password);
+      formData.append('name', userData.name);
+      formData.append('type', userData.type.toUpperCase()); // API expects uppercase
 
-      const response = await authAPI.register(apiData);
-      
+      if (userData.signature) {
+        formData.append('signature', userData.signature);
+      }
+
+      if (userData.faceImage) {
+        // Convert base64 to blob
+        const response = await fetch(userData.faceImage);
+        const blob = await response.blob();
+        formData.append('image', blob, 'face.jpg');
+      }
+
+      const response = await authAPI.register(formData);
+
       const { user, token } = response.data;
 
       // Normalize user type for frontend
@@ -134,24 +166,30 @@ export const AppProvider = ({ children }) => {
   const sendMessage = async (messageData) => {
     try {
       setLoading(true);
-      
-      // Prepare data for API
-      const apiData = {
-        receiverId: messageData.to.id,
-        subject: messageData.subject,
-        message: messageData.message,
-        isFaceVerified: messageData.isFaceVerified || false,
-        isDigitallyVerified: messageData.isDigitallyVerified || false,
-      };
 
-      const response = await messageAPI.sendMessage(apiData);
+      // Create FormData
+      const formData = new FormData();
+      formData.append('receiverId', messageData.to.id);
+      formData.append('subject', messageData.subject);
+      formData.append('message', messageData.message);
+      formData.append('isDigitallyVerified', messageData.isDigitallyVerified || false);
+      // isFaceVerified is determined by backend based on verification result
+
+      if (messageData.faceImage) {
+        // Convert base64 to blob
+        const response = await fetch(messageData.faceImage);
+        const blob = await response.blob();
+        formData.append('image', blob, 'face.jpg');
+      }
+
+      const response = await messageAPI.sendMessage(formData);
       const newMessage = response.data.data;
 
       console.log("Message sent:", newMessage.subject);
-      
+
       // Add to local state
       setMessages((prev) => [newMessage, ...prev]);
-      
+
       return newMessage;
     } catch (err) {
       const errorMessage = err.response?.data?.error || "Failed to send message";
@@ -167,12 +205,12 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await messageAPI.getInbox();
       const messages = response.data;
-      
+
       // Sort by timestamp
       const sortedMessages = messages.sort(
         (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
       );
-      
+
       console.log("Fetched inbox messages:", sortedMessages.length);
       return sortedMessages;
     } catch (err) {
@@ -185,12 +223,12 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await messageAPI.getSent();
       const messages = response.data;
-      
+
       // Sort by timestamp
       const sortedMessages = messages.sort(
         (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
       );
-      
+
       console.log("Fetched sent messages:", sortedMessages.length);
       return sortedMessages;
     } catch (err) {

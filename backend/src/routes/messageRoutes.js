@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const messageController = require('../controllers/messageController');
 const { authenticateToken } = require('../middleware/auth');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
-// All message routes require authentication
-router.post('/send', authenticateToken, messageController.sendMessage);
-router.get('/inbox', authenticateToken, messageController.getInboxMessages);
-router.get('/sent', authenticateToken, messageController.getSentMessages);
-router.get('/all', authenticateToken, messageController.getAllMessages);
+router.use(authenticateToken);
+
+router.post('/send', upload.single('image'), messageController.sendMessage);
+router.get('/inbox', messageController.getInboxMessages);
+router.get('/sent', messageController.getSentMessages);
+router.get('/all', messageController.getAllMessages); // Admin/Debug
 
 module.exports = router;
-

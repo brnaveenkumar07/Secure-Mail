@@ -12,39 +12,40 @@ datasource db {
 
 // User model for both individuals and organizations
 model User {
-  id          Int       @id @default(autoincrement())
-  username    String    @unique
-  password    String    // Hashed with bcrypt
-  name        String
-  type        UserType  @default(INDIVIDUAL)
-  signature   String?   // Digital signature for organizations
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String // Hashed with bcrypt
+  name      String
+  type      UserType @default(INDIVIDUAL)
+  signature String? // Digital signature for organizations
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  sentMessages    Message[] @relation("SenderMessages")
-  receivedMessages Message[] @relation("ReceiverMessages")
-  
+  sentMessages     Message[]   @relation("SenderMessages")
+  receivedMessages Message[]   @relation("ReceiverMessages")
+  Embedding        Embedding[]
+
   @@map("users")
 }
 
 // Message model
 model Message {
-  id                  Int       @id @default(autoincrement())
+  id                  Int      @id @default(autoincrement())
   subject             String
   message             String
-  isFaceVerified      Boolean   @default(false)
-  isDigitallyVerified Boolean   @default(false)
-  timestamp           DateTime  @default(now())
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  
+  isFaceVerified      Boolean  @default(false)
+  isDigitallyVerified Boolean  @default(false)
+  timestamp           DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
   // Relations
-  senderId    Int
-  receiverId  Int
-  sender      User   @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver    User   @relation("ReceiverMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  
+  senderId   Int
+  receiverId Int
+  sender     User @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User @relation("ReceiverMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
   @@map("messages")
 }
 
@@ -52,4 +53,14 @@ model Message {
 enum UserType {
   INDIVIDUAL
   ORGANIZATION
+}
+
+model Embedding {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  vector    Float[]
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("embeddings")
 }
