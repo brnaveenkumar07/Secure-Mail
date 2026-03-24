@@ -11,14 +11,12 @@ const Inbox = () => {
   const [activeTab, setActiveTab] = useState("received"); // "received" or "sent"
   const [receivedMessages, setReceivedMessages] = useState([]);
   const [sentMessages, setSentMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   // Load messages
   useEffect(() => {
     if (!currentUser) return;
 
     const loadMessages = async () => {
-      setLoading(true);
       try {
         const [inbox, sent] = await Promise.all([
           getInboxMessages(),
@@ -28,8 +26,6 @@ const Inbox = () => {
         setSentMessages(sent);
       } catch (error) {
         console.error("Error loading messages:", error);
-      } finally {
-        setLoading(false);
       }
     };
 

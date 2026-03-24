@@ -68,8 +68,12 @@ const ComposeMessage = () => {
       return;
     }
 
-    // Show Face ID modal
-    setShowFaceIDModal(true);
+    if (currentUser.type === "individual") {
+      // Show Face ID modal only for individuals
+      setShowFaceIDModal(true);
+    } else {
+      handleFaceVerified();
+    }
   };
 
   const handleFaceVerified = async () => {

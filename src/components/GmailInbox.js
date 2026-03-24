@@ -8,7 +8,6 @@ const GmailInbox = () => {
     currentUser,
     getInboxMessages,
     getSentMessages,
-    allMessages,
     logout,
   } = useApp();
 
@@ -17,20 +16,17 @@ const GmailInbox = () => {
   const [activeTab, setActiveTab] = useState("inbox"); // inbox, sent, starred, important
   const [selectedMessages, setSelectedMessages] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState("");
-  const [showCompose, setShowCompose] = useState(false);
   const [starredMessageIds, setStarredMessageIds] = useState(new Set());
   const [importantMessageIds, setImportantMessageIds] = useState(new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [receivedMessages, setReceivedMessages] = useState([]);
   const [sentMessages, setSentMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   // Load messages when currentUser or activeTab changes
   useEffect(() => {
     if (!currentUser) return;
 
     const loadMessages = async () => {
-      setLoading(true);
       try {
         const [inbox, sent] = await Promise.all([
           getInboxMessages(),
@@ -40,8 +36,6 @@ const GmailInbox = () => {
         setSentMessages(sent);
       } catch (error) {
         console.error("Error loading messages:", error);
-      } finally {
-        setLoading(false);
       }
     };
 

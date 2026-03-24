@@ -71,7 +71,6 @@ const Register = () => {
           signature: formData.signature,
         }),
       };
-
       if (formData.type === "organization") {
         setLoading(true);
         try {
