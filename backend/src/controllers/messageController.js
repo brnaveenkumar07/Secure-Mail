@@ -1,15 +1,19 @@
 const prisma = require('../config/database');
+const { verifyFace } = require('../services/faceAuthService');
+const fs = require('fs');
 
 /**
  * Send a message
  */
 const sendMessage = async (req, res) => {
   try {
-    const { receiverId, subject, message, isFaceVerified, isDigitallyVerified } = req.body;
+    const { receiverId, subject, message, isDigitallyVerified } = req.body;
     const senderId = req.user.id;
+    const imageFile = req.file;
 
     // Validation
     if (!receiverId || !subject || !message) {
+      if (imageFile) fs.unlinkSync(imageFile.path);
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -19,11 +23,13 @@ const sendMessage = async (req, res) => {
     });
 
     if (!receiver) {
+      if (imageFile) fs.unlinkSync(imageFile.path);
       return res.status(404).json({ error: 'Receiver not found' });
     }
 
     // Check if sender and receiver are different
     if (senderId === parseInt(receiverId)) {
+      if (imageFile) fs.unlinkSync(imageFile.path);
       return res.status(400).json({ error: 'Cannot send message to yourself' });
     }
 
@@ -32,13 +38,41 @@ const sendMessage = async (req, res) => {
       where: { id: senderId },
     });
 
+    // Face Verification Logic
+    let isFaceVerified = false;
+    if (sender.type === 'INDIVIDUAL') {
+      if (imageFile) {
+        try {
+          // Get sender's stored embedding
+          const embedding = await prisma.embedding.findFirst({
+            where: { userId: senderId },
+            orderBy: { createdAt: 'desc' }, // Get latest
+          });
+
+          if (embedding) {
+            isFaceVerified = await verifyFace(imageFile.path, embedding.vector);
+          }
+
+          // Cleanup
+          fs.unlinkSync(imageFile.path);
+        } catch (err) {
+          console.error('Face verification error:', err);
+          if (fs.existsSync(imageFile.path)) fs.unlinkSync(imageFile.path);
+          // We don't fail the message sending, just set verified to false
+        }
+      }
+    } else {
+      // Organizations don't use face verification
+      isFaceVerified = false;
+    }
+
     // Create message
     const newMessage = await prisma.message.create({
       data: {
         subject,
         message,
-        isFaceVerified: isFaceVerified || sender.type === 'INDIVIDUAL',
-        isDigitallyVerified: isDigitallyVerified || sender.type === 'ORGANIZATION',
+        isFaceVerified,
+        isDigitallyVerified: isDigitallyVerified === 'true' || isDigitallyVerified === true || sender.type === 'ORGANIZATION', // Simplify logic
         timestamp: new Date(),
         senderId,
         receiverId: parseInt(receiverId),
@@ -75,6 +109,7 @@ const sendMessage = async (req, res) => {
         id: newMessage.receiver.id,
         name: newMessage.receiver.name,
         type: newMessage.receiver.type,
+        ...(newMessage.receiver.signature && { signature: newMessage.receiver.signature }),
       },
       subject: newMessage.subject,
       message: newMessage.message,
@@ -89,6 +124,7 @@ const sendMessage = async (req, res) => {
     });
   } catch (error) {
     console.error('Send message error:', error);
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -135,6 +171,7 @@ const getInboxMessages = async (req, res) => {
         id: msg.receiver.id,
         name: msg.receiver.name,
         type: msg.receiver.type,
+        ...(msg.receiver.signature && { signature: msg.receiver.signature }),
       },
       subject: msg.subject,
       message: msg.message,
@@ -192,6 +229,7 @@ const getSentMessages = async (req, res) => {
         id: msg.receiver.id,
         name: msg.receiver.name,
         type: msg.receiver.type,
+        ...(msg.receiver.signature && { signature: msg.receiver.signature }),
       },
       subject: msg.subject,
       message: msg.message,
@@ -246,6 +284,7 @@ const getAllMessages = async (req, res) => {
         id: msg.receiver.id,
         name: msg.receiver.name,
         type: msg.receiver.type,
+        ...(msg.receiver.signature && { signature: msg.receiver.signature }),
       },
       subject: msg.subject,
       message: msg.message,
@@ -267,4 +306,3 @@ module.exports = {
   getSentMessages,
   getAllMessages,
 };
-

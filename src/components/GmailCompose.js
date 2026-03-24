@@ -83,17 +83,24 @@ const GmailCompose = () => {
     }
   };
 
-  const handleFaceVerified = async () => {
+  const handleFaceVerified = async (faceImage) => {
     console.log("✅ Face ID verified! Sending message...");
     if (messageData) {
-      console.log("📧 Sending message data:", messageData);
+      // Add face image to message data
+      const dataToSend = {
+        ...messageData,
+        faceImage: faceImage
+      };
+
+      console.log("📧 Sending message data with face image");
       try {
-        await sendMessage(messageData);
+        await sendMessage(dataToSend);
         setShowFaceID(false);
         alert("Message sent successfully with Face ID verification!");
         navigate("/gmail-inbox");
       } catch (err) {
         alert("Failed to send message: " + err.message);
+        setShowFaceID(false); // Close modal on error so user can try again
       }
     } else {
       console.error("❌ No message data available");
@@ -290,7 +297,7 @@ const GmailCompose = () => {
                 </button>
 
                 <div className="flex items-center space-x-3">
-          
+
 
                   <button
                     type="submit"
